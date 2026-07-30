@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Tool ✨</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ss: {
+              bg: '#0f111a',
+              card: '#1a1d2d',
+              accent: '#89b4fa',
+              text: '#cdd6f4',
+              muted: '#7f849c',
+              border: '#313244',
+              success: '#a6e3a1',
+              danger: '#f38ba8'
+            }
+          },
+          fontFamily: {
+            sans: ['Segoe UI', 'Tahoma', 'Geneva', 'Verdana', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0f111a; color: #cdd6f4; }
+    
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f111a; }
+    ::-webkit-scrollbar-thumb { background: #313244; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #7f849c; }
+
+    .ss-input {
+      background-color: #0f111a;
+      border: 1px solid #313244;
+      color: #cdd6f4;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .ss-input:focus { border-color: #89b4fa; }
+    
+    .ss-btn {
+      background-color: #89b4fa;
+      color: #0f111a;
+      border: none;
+      font-weight: bold;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .ss-btn:hover { opacity: 0.9; }
+    .ss-btn:active { transform: scale(0.98); }
+    
+    .ss-btn-secondary {
+      background-color: transparent;
+      color: #cdd6f4;
+      border: 1px solid #313244;
+      transition: background-color 0.2s;
+    }
+    .ss-btn-secondary:hover { background-color: #1a1d2d; }
+
+    .completed-task { text-decoration: line-through; color: #7f849c; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="min-h-screen overflow-hidden">
+
+  <!-- ==================== GLOBAL LOGIN SCREEN ==================== -->
+  <div id="global-login" class="fixed inset-0 bg-ss-bg flex flex-col items-center justify-center z-[200]">
+    <div class="bg-ss-card border border-ss-border p-10 rounded-xl text-center max-w-md w-full shadow-lg">
+      <h2 class="text-4xl font-bold mb-2 tracking-wide">Study<span class="text-ss-accent">Tool</span>.</h2>
+      <p class="text-ss-muted mb-8">Enter master key to access your hub.</p>
+      <input type="password" id="global-key" placeholder="Master key..." class="w-full ss-input rounded-lg px-4 py-3 text-center mb-4" onkeypress="if(event.key === 'Enter') unlockApp()">
+      <button onclick="unlockApp()" class="w-full ss-btn py-3 rounded-lg text-lg">Unlock 🔓</button>
+      <p id="global-error" class="text-ss-danger mt-4 text-sm hidden">Incorrect key. Try again!</p>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN APP WRAPPER ==================== -->
+  <div id="app-wrapper" class="hidden w-full h-screen flex">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-ss-card border-r border-ss-border flex flex-col h-full z-50 shadow-xl">
+      <div class="p-6 text-center border-b border-ss-border">
+        <h1 class="text-2xl font-bold tracking-wide text-ss-text">Study<span class="text-ss-accent">Tool</span>.</h1>
+      </div>
+      <nav class="flex-1 p-4 space-y-2">
+        <button onclick="switchModule('tasks')" id="nav-tasks" class="w-full text-left px-4 py-3 rounded-lg transition-colors text-ss-muted hover:bg-ss-border hover:text-ss-text font-medium flex items-center gap-3">
+          <i class="fas fa-check-double w-5 text-center"></i> Tasks
+        </button>
+        <button onclick="switchModule('notes')" id="nav-notes" class="w-full text-left px-4 py-3 rounded-lg transition-colors text-ss-muted hover:bg-ss-border hover:text-ss-text font-medium flex items-center gap-3">
+          <i class="fas fa-book-open w-5 text-center"></i> Notes Directory
+        </button>
+        <button onclick="switchModule('diary')" id="nav-diary" class="w-full text-left px-4 py-3 rounded-lg transition-colors text-ss-muted hover:bg-ss-border hover:text-ss-text font-medium flex items-center gap-3">
+          <i class="fas fa-book w-5 text-center"></i> Diary
+        </button>
+        <button onclick="switchModule('grades')" id="nav-grades" class="w-full text-left px-4 py-3 rounded-lg transition-colors text-ss-muted hover:bg-ss-border hover:text-ss-text font-medium flex items-center gap-3">
+          <i class="fas fa-chart-line w-5 text-center"></i> Grades
+        </button>
+        <button onclick="switchModule('vault')" id="nav-vault" class="w-full text-left px-4 py-3 rounded-lg transition-colors text-ss-muted hover:bg-ss-border hover:text-ss-text font-medium flex items-center gap-3">
+          <i class="fas fa-folder-open w-5 text-center"></i> Asset Vault
+        </button>
+      </nav>
+      <div class="p-4 border-t border-ss-border">
+        <button onclick="lockApp()" class="w-full ss-btn-secondary px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:text-ss-danger hover:border-ss-danger transition-colors">
+          <i class="fas fa-lock"></i> Lock App
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 h-full overflow-y-auto relative">
+      
+      <!-- ==================== MODULE 1: TASKS ==================== -->
+      <div id="mod-tasks" class="module-container p-8 max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-8 border-b border-ss-border pb-4">
+          <h2 class="text-3xl font-bold text-ss-accent">Task Manager</h2>
+        </header>
+
+        <div class="bg-ss-card border border-ss-border rounded-xl p-6 mb-8 shadow-lg flex gap-3">
+          <input id="task-input" type="text" placeholder="What needs to be done?" class="flex-1 ss-input rounded-lg px-4 py-3 text-lg">
+          <button id="add-btn" class="ss-btn px-6 py-3 rounded-lg text-lg">Add Task 📝</button>
+        </div>
+
+        <div class="flex justify-between items-center mb-4 px-2">
+          <div class="text-ss-muted font-medium">
+            <i class="fas fa-list-ul mr-2"></i><span id="task-count">0 tasks</span>
+          </div>
+          <button id="clear-completed" class="text-sm text-ss-danger hover:underline flex items-center gap-1">
+            <i class="fas fa-trash"></i> Clear completed
+          </button>
+        </div>
+        <ul id="task-list" class="space-y-3 min-h-[300px]"></ul>
+      </div>
+
+      <!-- ==================== MODULE 2: STORED NOTES ==================== -->
+      <div id="mod-notes" class="module-container p-8 max-w-6xl mx-auto hidden">
+        <header class="flex justify-between items-center mb-8 pb-4 border-b border-ss-border">
+          <div>
+            <h2 class="text-3xl font-bold text-ss-accent">Academic Directory</h2>
+            <p class="text-ss-muted mt-1">Secured Study Material Vault</p>
+          </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('1V0C8g5BHxj_RW8sYnizGwxFclqLUDgik', 'English Notes & Papers')">
+            <div class="text-4xl mb-2">📖</div>
+            <h3 class="text-xl font-bold text-ss-text">English</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:03 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('1bHOH4oSlLGrN41lWtzqVnqWLN2eOhlvU', 'Exam Timetable')">
+            <div class="text-4xl mb-2">📅</div>
+            <h3 class="text-xl font-bold text-ss-text">Exam Time table's</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:02 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('1CwefOF0Vi7Boht_99jS86Ut53vbZPOCG', 'Hindi Notes')">
+            <div class="text-4xl mb-2">📝</div>
+            <h3 class="text-xl font-bold text-ss-text">Hindi</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:03 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('1l0eX0xKV9jQnISccUTYcQcOE7LYrt3Wo', 'Kannada Notes')">
+            <div class="text-4xl mb-2">📚</div>
+            <h3 class="text-xl font-bold text-ss-text">Kannada</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:03 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('14wnWX-p_tAXNvX6k2NWiiPeozU6rT5sK', 'Mathematics Notes')">
+            <div class="text-4xl mb-2">📐</div>
+            <h3 class="text-xl font-bold text-ss-text">Mathematics</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:03 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('1CdgzgXakzypdQCkBG0ZfiOhYYKWPFp7f', 'Science Notes')">
+            <div class="text-4xl mb-2">🔬</div>
+            <h3 class="text-xl font-bold text-ss-text">Science</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:03 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesFolder('1qOGvCvmlKxxgdGtz0A-fdv7WJlPQdEIN', 'Social Studies')">
+            <div class="text-4xl mb-2">🌍</div>
+            <h3 class="text-xl font-bold text-ss-text">Social</h3>
+            <p class="text-sm text-ss-muted">Modified: 5:03 PM • Jayanth Kini</p>
+          </div>
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl cursor-pointer hover:-translate-y-1 hover:border-ss-accent transition-all shadow-sm flex flex-col gap-2" onclick="openNotesInDrive('1asRHkS7rG61e0fagT4WEFZjuTmiZEkMw')">
+            <div class="text-4xl mb-2">📄</div>
+            <h3 class="text-xl font-bold text-ss-text">Question Papers ↗</h3>
+            <p class="text-sm text-ss-muted">Opens in Google Drive</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== MODULE 3: DIARY ==================== -->
+      <div id="mod-diary" class="module-container p-8 max-w-4xl mx-auto hidden">
+        <header class="flex justify-between items-center mb-8 pb-4 border-b border-ss-border">
+          <h2 class="text-3xl font-bold text-ss-accent">Daily Log</h2>
+          <div class="flex gap-3">
+            <button onclick="exportDiary()" class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">Download JSON ↓</button>
+            <label class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">
+              Load JSON ↑ <input type="file" class="hidden" accept=".json" onchange="importDiary(event)">
+            </label>
+          </div>
+        </header>
+
+        <div class="relative mb-8">
+          <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-ss-muted"></i>
+          <input type="text" id="diary-search" placeholder="Search entries by topic, date, or keyword..." class="w-full ss-input rounded-lg pl-12 pr-4 py-4 shadow-md text-lg" oninput="filterDiary()">
+        </div>
+
+        <div class="bg-ss-card border border-ss-border p-6 rounded-xl mb-8 shadow-lg">
+          <div class="flex gap-4 mb-4">
+            <input type="date" id="diary-date" class="ss-input rounded-lg px-4 py-3 w-40">
+            <input type="text" id="diary-topic" placeholder="Topic (e.g., Prime Factorization)" class="flex-1 ss-input rounded-lg px-4 py-3">
+          </div>
+          <textarea id="diary-text" placeholder="What did you study today?" class="w-full ss-input rounded-lg px-4 py-3 h-32 mb-4 resize-y"></textarea>
+          <button onclick="saveDiaryEntry()" class="ss-btn px-6 py-3 rounded-lg w-full text-lg">Log Entry 📝</button>
+        </div>
+        <div id="diary-feed" class="space-y-4"></div>
+      </div>
+
+      <!-- ==================== MODULE 4: GRADES ==================== -->
+      <div id="mod-grades" class="module-container p-8 max-w-5xl mx-auto hidden">
+        <header class="flex justify-between items-center mb-8 pb-4 border-b border-ss-border">
+          <h2 class="text-3xl font-bold text-ss-accent">Grade Tracker</h2>
+        </header>
+
+        <div class="bg-ss-card border border-ss-border p-8 rounded-xl mb-8 shadow-lg">
+          <h3 class="text-ss-muted uppercase tracking-widest text-xs font-bold mb-6">📝 Add Record</h3>
+          <input type="hidden" id="grade-edit-id">
+          
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div><label class="text-xs text-ss-muted mb-1 block font-medium">Grade 🏫</label><input type="text" id="g-grade" class="w-full ss-input rounded-lg px-4 py-2"></div>
+            <div><label class="text-xs text-ss-muted mb-1 block font-medium">Section 🪧</label><input type="text" id="g-section" class="w-full ss-input rounded-lg px-4 py-2"></div>
+            <div><label class="text-xs text-ss-muted mb-1 block font-medium">Roll No. 🔢</label><input type="text" id="g-roll" class="w-full ss-input rounded-lg px-4 py-2"></div>
+            <div><label class="text-xs text-ss-muted mb-1 block font-medium">Exam Name 📑</label><input type="text" id="g-exam" class="w-full ss-input rounded-lg px-4 py-2"></div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="md:col-span-2"><label class="text-xs text-ss-muted mb-1 block font-medium">Subject 📚</label><input type="text" id="g-subject" class="w-full ss-input rounded-lg px-4 py-2"></div>
+            <div><label class="text-xs text-ss-muted mb-1 block font-medium">Marks Obtained 🎯</label><input type="number" id="g-marks" class="w-full ss-input rounded-lg px-4 py-2"></div>
+            <div><label class="text-xs text-ss-muted mb-1 block font-medium">Total Marks 💯</label><input type="number" id="g-total" class="w-full ss-input rounded-lg px-4 py-2"></div>
+          </div>
+          <button onclick="addGradeRecord()" id="g-submit-btn" class="w-full ss-btn py-3 rounded-lg text-lg">➕ Add Record</button>
+        </div>
+
+        <div class="text-center mb-8">
+          <button onclick="calcGrades()" class="ss-btn-secondary px-8 py-3 rounded-lg font-bold mb-4 shadow-sm w-full md:w-auto">📈 Calculate Percentage & Archive</button>
+          <div id="g-result" class="hidden bg-ss-card border border-ss-success p-6 rounded-xl text-xl font-bold shadow-lg"></div>
+        </div>
+
+        <div class="flex gap-2 mb-4 bg-ss-card p-1 rounded-lg w-max border border-ss-border">
+          <button onclick="switchGradeTab('current')" id="g-tab-curr" class="px-6 py-2 rounded-md bg-ss-accent text-ss-bg font-bold">Current Exams</button>
+          <button onclick="switchGradeTab('archived')" id="g-tab-prev" class="px-6 py-2 rounded-md text-ss-muted hover:text-ss-text font-medium transition-colors">Previous Exams</button>
+        </div>
+
+        <div class="bg-ss-card border border-ss-border rounded-xl overflow-hidden shadow-lg">
+          <div class="grid grid-cols-12 gap-4 p-4 border-b border-ss-border text-xs font-bold tracking-wider text-ss-muted uppercase bg-ss-bg/50">
+            <div class="col-span-5">Subject Details</div>
+            <div class="col-span-3">Exam</div>
+            <div class="col-span-2">Score</div>
+            <div class="col-span-2 text-right">Actions</div>
+          </div>
+          <div id="g-list-current"></div>
+          <div id="g-list-archived" class="hidden"></div>
+        </div>
+      </div>
+
+      <!-- ==================== MODULE 5: VAULT ==================== -->
+      <div id="mod-vault" class="module-container p-8 max-w-6xl mx-auto hidden">
+        <header class="flex justify-between items-center mb-8 pb-4 border-b border-ss-border">
+          <div class="flex items-center gap-3">
+            <h2 class="text-3xl font-bold text-ss-accent" id="v-main-title">Asset Vault</h2>
+            <button id="v-back-btn" class="hidden ss-btn-secondary px-3 py-1 rounded-md text-sm" onclick="showVaultFolders()">← Back</button>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="password" id="v-api-key" placeholder="Gemini API Key..." class="ss-input px-3 py-2 rounded-lg text-sm w-48" onchange="saveApiKey(this.value)">
+            <button id="v-add-folder" class="hidden ss-btn px-4 py-2 rounded-lg text-sm" onclick="document.getElementById('v-modal-folder').classList.remove('hidden')">+ Folder</button>
+            <button id="v-add-file" class="hidden bg-ss-success text-ss-bg font-bold px-4 py-2 rounded-lg text-sm hover:opacity-90" onclick="document.getElementById('v-modal-file').classList.remove('hidden')">+ Upload File</button>
+          </div>
+        </header>
+
+        <div id="v-folder-view" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        <div id="v-file-view" class="hidden">
+          <h3 id="v-current-folder-name" class="text-xl font-bold text-ss-text mb-6"></h3>
+          <div id="v-file-list" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== NOTES VIEWER MODAL ==================== -->
+  <div id="notes-viewer-modal" class="fixed inset-0 bg-black/95 flex flex-col z-[300] hidden backdrop-blur-sm transition-opacity duration-300">
+    <div class="h-16 px-6 bg-ss-bg border-b border-ss-border flex items-center justify-between shadow-md">
+      <span id="notes-modal-title" class="font-bold text-lg text-ss-text tracking-wide">Stored Notes • Preview</span>
+      <button onclick="closeNotesPreview()" class="ss-btn-secondary w-10 h-10 rounded-lg flex items-center justify-center hover:bg-ss-danger hover:text-white hover:border-ss-danger transition-colors">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div id="notes-modal-body" class="flex-1 w-full h-full p-4 bg-ss-bg"></div>
+  </div>
+
+  <!-- ==================== VAULT MODALS ==================== -->
+  <div id="v-modal-folder" class="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] hidden">
+    <div class="bg-ss-card border border-ss-border p-6 rounded-xl w-full max-w-sm">
+      <h3 class="text-xl font-bold mb-4">Create Folder</h3>
+      <input type="hidden" id="v-edit-f-id">
+      <input type="text" id="v-f-name" placeholder="Folder Name" class="w-full ss-input rounded-lg px-4 py-2 mb-4">
+      <select id="v-f-color" class="w-full ss-input rounded-lg px-4 py-2 mb-6">
+        <option value="#89b4fa">Blue</option><option value="#a6e3a1">Green</option>
+        <option value="#f38ba8">Red</option><option value="#f9e2af">Yellow</option>
+      </select>
+      <div class="flex justify-end gap-2">
+        <button class="ss-btn-secondary px-4 py-2 rounded-lg" onclick="document.getElementById('v-modal-folder').classList.add('hidden')">Cancel</button>
+        <button class="ss-btn px-4 py-2 rounded-lg" onclick="saveVaultFolder()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="v-modal-file" class="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] hidden">
+    <div class="bg-ss-card border border-ss-border p-6 rounded-xl w-full max-w-sm">
+      <h3 class="text-xl font-bold mb-4">Upload Asset</h3>
+      <input type="hidden" id="v-edit-file-id">
+      <input type="text" id="v-file-title" placeholder="File Title" class="w-full ss-input rounded-lg px-4 py-2 mb-4">
+      <input type="file" id="v-file-input" class="w-full text-sm text-ss-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-ss-accent file:text-ss-bg hover:file:opacity-90 mb-4">
+      <p id="v-upload-stat" class="text-ss-success text-xs mb-4"></p>
+      <div class="flex justify-end gap-2">
+        <button class="ss-btn-secondary px-4 py-2 rounded-lg" onclick="document.getElementById('v-modal-file').classList.add('hidden')">Cancel</button>
+        <button id="v-save-file-btn" class="bg-ss-success text-ss-bg font-bold px-4 py-2 rounded-lg" onclick="saveVaultFile()">Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="v-modal-player" class="fixed inset-0 bg-black/90 flex flex-col p-8 z-[100] hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h3 id="v-player-title" class="text-xl font-bold text-white"></h3>
+      <div class="flex gap-3">
+        <a id="v-download-btn" class="ss-btn px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:no-underline" style="text-decoration: none;" download>
+            <i class="fas fa-download"></i> Download
+        </a>
+        <button class="ss-btn-secondary px-4 py-2 rounded-lg" onclick="closeVaultPlayer()">✕ Close</button>
+      </div>
+    </div>
+    <div class="flex-1 flex gap-6 overflow-hidden">
+      <div id="v-player-media" class="flex-[1.5] bg-black rounded-xl overflow-hidden flex items-center justify-center border border-ss-border"></div>
+      <div class="flex-1 bg-ss-card rounded-xl flex flex-col p-4 border border-ss-border">
+        <div class="flex justify-between items-center mb-4 border-b border-ss-border pb-2">
+          <span class="font-bold text-ss-accent"><i class="fas fa-sparkles"></i> AI Summary</span>
+          <button onclick="triggerGemini()" class="ss-btn px-3 py-1 text-sm rounded-lg">Summarize</button>
+        </div>
+        <div id="v-ai-out" class="flex-1 overflow-y-auto text-sm text-ss-text leading-relaxed whitespace-pre-wrap p-2">Ready to evaluate content. Click Summarize.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // GLOBAL UI CONTROLLER & AUTH
+    // ==========================================
+    const MASTER_KEY = "1234";
+
+    function unlockApp() {
+      if (document.getElementById('global-key').value === MASTER_KEY) {
+        document.getElementById('global-login').classList.add('hidden');
+        document.getElementById('app-wrapper').classList.remove('hidden');
+        document.getElementById('global-key').value = '';
+        document.getElementById('global-error').classList.add('hidden');
+        
+        renderTasks();
+        renderDiary();
+        renderGrades();
+        vRole = 'admin'; 
+        document.getElementById('v-add-folder').classList.remove('hidden');
+        initVaultDB();
+        switchModule('tasks');
+      } else {
+        document.getElementById('global-error').classList.remove('hidden');
+      }
+    }
+
+    function lockApp() {
+      document.getElementById('app-wrapper').classList.add('hidden');
+      document.getElementById('global-login').classList.remove('hidden');
+      vRole = null; 
+      vFolderId = null;
+      switchModule('tasks');
+    }
+
+    function switchModule(modId) {
+      document.querySelectorAll('.module-container').forEach(el => el.classList.add('hidden'));
+      document.getElementById('mod-' + modId).classList.remove('hidden');
+      
+      document.querySelectorAll('aside nav button').forEach(btn => {
+        btn.classList.remove('bg-ss-accent', 'text-ss-bg');
+        btn.classList.add('text-ss-muted');
+      });
+      const activeBtn = document.getElementById('nav-' + modId);
+      activeBtn.classList.add('bg-ss-accent', 'text-ss-bg');
+      activeBtn.classList.remove('text-ss-muted');
+    }
+
+    // ==========================================
+    // MODULE 1: TASKS
+    // ==========================================
+    const tInput = document.getElementById('task-input');
+    const tList = document.getElementById('task-list');
+    const tCount = document.getElementById('task-count');
+    let tasks = JSON.parse(localStorage.getItem('aetherTasks')) || [];
+
+    function renderTasks() {
+      tList.innerHTML = '';
+      if (tasks.length === 0) {
+        tList.innerHTML = `<div class="text-center py-12 text-ss-muted"><i class="fas fa-clipboard-list text-4xl mb-4 block"></i><p>No tasks remaining.</p></div>`;
+      } else {
+        tasks.forEach((t, i) => {
+          tList.innerHTML += `
+            <li class="bg-ss-card border border-ss-border p-4 rounded-xl flex items-center gap-4 group shadow-sm">
+              <button onclick="toggleTask(${i})" class="w-8 h-8 rounded-lg flex items-center justify-center text-xl transition-all ${t.completed ? 'text-ss-success' : 'text-ss-muted hover:text-ss-accent'}">
+                <i class="${t.completed ? 'fas fa-check-circle' : 'far fa-circle'}"></i>
+              </button>
+              <p class="flex-1 text-lg ${t.completed ? 'completed-task' : ''}">${t.text}</p>
+              <button onclick="delTask(${i})" class="opacity-0 group-hover:opacity-100 text-ss-danger hover:underline transition-opacity"><i class="fas fa-trash"></i></button>
+            </li>`;
+        });
+      }
+      tCount.textContent = `${tasks.length} tasks • ${tasks.filter(t => t.completed).length} done`;
+      localStorage.setItem('aetherTasks', JSON.stringify(tasks));
+    }
+
+    document.getElementById('add-btn').onclick = () => {
+      const text = tInput.value.trim();
+      if(text) { tasks.push({text, completed: false}); tInput.value=''; renderTasks(); }
+    };
+    tInput.onkeypress = (e) => { if(e.key === 'Enter') document.getElementById('add-btn').click(); };
+    function toggleTask(i) { tasks[i].completed = !tasks[i].completed; renderTasks(); }
+    function delTask(i) { tasks.splice(i, 1); renderTasks(); }
+    document.getElementById('clear-completed').onclick = () => { tasks = tasks.filter(t => !t.completed); renderTasks(); };
+
+    // ==========================================
+    // MODULE 2: STORED NOTES 
+    // ==========================================
+    function openNotesFolder(folderId, title) {
+      const modal = document.getElementById('notes-viewer-modal');
+      const modalBody = document.getElementById('notes-modal-body');
+      const modalTitle = document.getElementById('notes-modal-title');
+
+      modalTitle.innerText = `Stored Notes • ${title}`;
+      modalBody.innerHTML = `
+        <iframe 
+          src="https://drive.google.com/embeddedfolderview?id=${folderId}#grid" 
+          loading="lazy" 
+          style="width: 100%; height: 100%; border: none; border-radius: 0.5rem; filter: invert(0.92) hue-rotate(180deg) contrast(1.1);">
+        </iframe>
+      `;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function openNotesInDrive(folderId) { window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank'); }
+    function closeNotesPreview() {
+      const modal = document.getElementById('notes-viewer-modal');
+      const modalBody = document.getElementById('notes-modal-body');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modalBody.innerHTML = '';
+    }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNotesPreview(); });
+
+    // ==========================================
+    // MODULE 3: DIARY
+    // ==========================================
+    let diaries = JSON.parse(localStorage.getItem('studyDiary')) || [];
+    document.getElementById('diary-date').valueAsDate = new Date();
+
+    function renderDiary(list = diaries) {
+      const feed = document.getElementById('diary-feed');
+      feed.innerHTML = '';
+      list.sort((a, b) => new Date(b.date) - new Date(a.date));
+      if(list.length === 0) return feed.innerHTML = `<div class="text-center p-8 text-ss-muted italic">No entries found.</div>`;
+      list.forEach(d => {
+        feed.innerHTML += `
+          <div class="bg-ss-card border border-ss-border p-6 rounded-xl shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+              <div><h4 class="text-ss-accent font-bold text-lg">${d.topic}</h4><span class="text-ss-muted text-sm">${d.date}</span></div>
+              <button onclick="delDiary(${d.id})" class="text-ss-danger hover:underline text-sm"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+            <p class="whitespace-pre-wrap text-ss-text leading-relaxed">${d.text}</p>
+          </div>`;
+      });
+    }
+
+    function filterDiary() {
+      const q = document.getElementById('diary-search').value.toLowerCase();
+      renderDiary(diaries.filter(d => d.topic.toLowerCase().includes(q) || d.text.toLowerCase().includes(q) || d.date.includes(q)));
+    }
+
+    function saveDiaryEntry() {
+      const date = document.getElementById('diary-date').value;
+      const topic = document.getElementById('diary-topic').value;
+      const text = document.getElementById('diary-text').value;
+      if(!topic || !text) return alert("Fill out topic and content!");
+      diaries.push({id: Date.now(), date, topic, text});
+      localStorage.setItem('studyDiary', JSON.stringify(diaries));
+      document.getElementById('diary-topic').value = '';
+      document.getElementById('diary-text').value = '';
+      renderDiary();
+    }
+    
+    function delDiary(id) {
+      if(confirm("Delete this entry?")) {
+        diaries = diaries.filter(d => d.id !== id);
+        localStorage.setItem('studyDiary', JSON.stringify(diaries));
+        filterDiary();
+      }
+    }
+
+    function exportDiary() {
+      if(!diaries.length) return alert("No entries!");
+      const blob = new Blob([JSON.stringify(diaries, null, 2)], {type: "application/json"});
+      const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+      link.download = `Diary_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+    }
+
+    function importDiary(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if(Array.isArray(data)) {
+            const ids = new Set(diaries.map(d => d.id));
+            data.forEach(n => { if(!ids.has(n.id)) diaries.push(n); });
+            localStorage.setItem('studyDiary', JSON.stringify(diaries));
+            renderDiary(); alert("Loaded successfully!");
+          }
+        } catch(err) { alert("Invalid JSON file."); }
+      };
+      reader.readAsText(file); e.target.value = '';
+    }
+
+    // ==========================================
+    // MODULE 4: GRADETRACKER
+    // ==========================================
+    let grades = JSON.parse(localStorage.getItem('gradeTrackerData')) || [];
+    
+    function renderGrades() {
+      const clist = document.getElementById('g-list-current');
+      const alist = document.getElementById('g-list-archived');
+      clist.innerHTML = ''; alist.innerHTML = '';
+      
+      const curr = grades.filter(g => g.status === 'current');
+      const arch = grades.filter(g => g.status === 'archived');
+      
+      const rowTpl = (g) => `
+        <div class="grid grid-cols-12 gap-4 p-4 border-b border-ss-border items-center hover:bg-ss-bg/50 transition-colors">
+          <div class="col-span-5"><h4 class="font-bold text-ss-accent">${g.subject}</h4><p class="text-xs text-ss-muted mt-1">Grade: ${g.grade} | Sec: ${g.section} | Roll: ${g.roll}</p></div>
+          <div class="col-span-3 text-sm">${g.exam}</div>
+          <div class="col-span-2 font-bold text-ss-success">${g.marks}/${g.total}</div>
+          <div class="col-span-2 text-right flex gap-3 justify-end">
+            <button onclick="editGrade(${g.id})" class="text-ss-muted hover:text-ss-text"><i class="fas fa-edit"></i> Edit</button>
+            <button onclick="delGrade(${g.id})" class="text-ss-danger hover:underline"><i class="fas fa-trash"></i> Del</button>
+          </div>
+        </div>`;
+      
+      curr.length ? curr.forEach(g => clist.innerHTML += rowTpl(g)) : clist.innerHTML = `<div class="p-4 text-ss-muted text-center">No current marks.</div>`;
+      arch.length ? arch.forEach(g => alist.innerHTML += rowTpl(g)) : alist.innerHTML = `<div class="p-4 text-ss-muted text-center">No archived exams.</div>`;
+      localStorage.setItem('gradeTrackerData', JSON.stringify(grades));
+    }
+
+    function switchGradeTab(tab) {
+      if(tab === 'current') {
+        document.getElementById('g-tab-curr').className = 'px-6 py-2 rounded-md bg-ss-accent text-ss-bg font-bold';
+        document.getElementById('g-tab-prev').className = 'px-6 py-2 rounded-md text-ss-muted hover:text-ss-text font-medium transition-colors';
+        document.getElementById('g-list-current').classList.remove('hidden');
+        document.getElementById('g-list-archived').classList.add('hidden');
+      } else {
+        document.getElementById('g-tab-prev').className = 'px-6 py-2 rounded-md bg-ss-accent text-ss-bg font-bold';
+        document.getElementById('g-tab-curr').className = 'px-6 py-2 rounded-md text-ss-muted hover:text-ss-text font-medium transition-colors';
+        document.getElementById('g-list-archived').classList.remove('hidden');
+        document.getElementById('g-list-current').classList.add('hidden');
+      }
+    }
+
+    function addGradeRecord() {
+      const subject = document.getElementById('g-subject').value;
+      const marks = parseFloat(document.getElementById('g-marks').value);
+      const total = parseFloat(document.getElementById('g-total').value);
+      const exam = document.getElementById('g-exam').value;
+      const id = document.getElementById('grade-edit-id').value;
+      
+      if(!subject || !exam || isNaN(marks) || isNaN(total)) return alert("Fill core fields (Subject, Exam, Marks, Total)!");
+      
+      const data = {
+        grade: document.getElementById('g-grade').value, section: document.getElementById('g-section').value,
+        roll: document.getElementById('g-roll').value, exam, subject, marks, total
+      };
+
+      if(id) {
+        const i = grades.findIndex(r => r.id == id);
+        grades[i] = {...grades[i], ...data};
+        document.getElementById('grade-edit-id').value = '';
+        document.getElementById('g-submit-btn').innerText = '➕ Add Record';
+        if(grades[i].status === 'archived') { grades[i].status = 'current'; switchGradeTab('current'); }
+      } else {
+        grades.push({id: Date.now(), status: 'current', ...data});
+      }
+      
+      ['subject','marks','total'].forEach(k => document.getElementById(`g-${k}`).value='');
+      document.getElementById('g-result').classList.add('hidden');
+      renderGrades();
+    }
+
+    function delGrade(id) { grades = grades.filter(g => g.id !== id); renderGrades(); }
+    function editGrade(id) {
+      const g = grades.find(x => x.id === id);
+      if(!g) return;
+      ['grade','section','roll','exam','subject','marks','total'].forEach(k => document.getElementById(`g-${k}`).value = g[k] || '');
+      document.getElementById('grade-edit-id').value = g.id;
+      document.getElementById('g-submit-btn').innerText = '💾 Update Record';
+      document.getElementById('mod-grades').scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function calcGrades() {
+      const curr = grades.filter(g => g.status === 'current');
+      if(!curr.length) return alert("No current records to calc!");
+      let obt = 0, tot = 0;
+      curr.forEach(g => { obt += g.marks; tot += g.total; });
+      const perc = (obt/tot)*100;
+      
+      const res = document.getElementById('g-result');
+      res.classList.remove('hidden');
+      res.innerHTML = `Result: <span class="text-ss-success">${perc.toFixed(2)}%</span> ${perc>85?'🏆':'📚'}<br><span class="text-sm text-ss-muted font-normal">(${obt}/${tot})</span>`;
+      
+      grades = grades.map(g => g.status === 'current' ? {...g, status:'archived'} : g);
+      renderGrades(); switchGradeTab('archived');
+    }
+
+    // ==========================================
+    // MODULE 5: NEXUS VAULT
+    // ==========================================
+    let vDB, vFolderId = null, vRole = null, vBlob = null, vBlobName = "";
+    document.getElementById('v-api-key').value = localStorage.getItem("nexus_gemini_api_key") || "";
+    function saveApiKey(v) { localStorage.setItem("nexus_gemini_api_key", v.trim()); }
+
+    function initVaultDB() {
+      if(vDB) return vFolderId ? openVaultFolder(vFolderId) : renderVaultFolders();
+      const req = indexedDB.open("NexusVaultDB", 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains("v_folders")) db.createObjectStore("v_folders", {keyPath:"id"});
+        if(!db.objectStoreNames.contains("v_files")) db.createObjectStore("v_files", {keyPath:"id"});
+      };
+      req.onsuccess = (e) => { vDB = e.target.result; renderVaultFolders(); };
+    }
+
+    function renderVaultFolders() {
+      const tx = vDB.transaction(["v_folders", "v_files"], "readonly");
+      const fStore = tx.objectStore("v_folders").getAll();
+      const vStore = tx.objectStore("v_files").getAll();
+      
+      tx.oncomplete = () => {
+        const folders = fStore.result; const files = vStore.result;
+        const view = document.getElementById('v-folder-view');
+        if(!folders.length) return view.innerHTML = `<div class="col-span-3 text-ss-muted italic text-center p-8">No folders in vault.</div>`;
+        
+        view.innerHTML = folders.map(f => {
+          const count = files.filter(x => x.folderId === f.id).length;
+          const adminHTML = vRole === 'admin' ? `<button onclick="editVFolder(${f.id}, event)" class="text-ss-muted hover:text-ss-text text-xs">Edit</button><button onclick="delVFolder(${f.id}, event)" class="text-ss-danger hover:underline text-xs">Delete</button>` : '';
+          return `
+            <div onclick="openVaultFolder(${f.id})" class="bg-ss-card border border-ss-border p-5 rounded-xl cursor-pointer hover:-translate-y-1 transition-transform border-l-4 shadow-sm" style="border-left-color: ${f.color}">
+              <h4 class="font-bold text-lg mb-1">${f.name}</h4>
+              <p class="text-xs text-ss-muted mb-4">${count} items</p>
+              <div class="flex gap-3 justify-end">${adminHTML}</div>
+            </div>`;
+        }).join('');
+      };
+    }
+
+    function openVaultFolder(id) {
+      vFolderId = id;
+      const tx = vDB.transaction(["v_folders", "v_files"], "readonly");
+      tx.objectStore("v_folders").get(id).onsuccess = (e) => {
+        const f = e.target.result;
+        document.getElementById('v-current-folder-name').innerText = f.name;
+        document.getElementById('v-folder-view').classList.add('hidden');
+        document.getElementById('v-file-view').classList.remove('hidden');
+        document.getElementById('v-back-btn').classList.remove('hidden');
+        document.getElementById('v-add-folder').classList.add('hidden');
+        if(vRole==='admin') document.getElementById('v-add-file').classList.remove('hidden');
+      };
+      tx.objectStore("v_files").getAll().onsuccess = (e) => {
+        const files = e.target.result.filter(x => x.folderId === id);
+        const list = document.getElementById('v-file-list');
+        if(!files.length) return list.innerHTML = `<div class="col-span-4 text-ss-muted italic p-4">Empty folder.</div>`;
+        list.innerHTML = files.map(f => {
+          const adminHTML = vRole==='admin' ? `<div class="mt-3 flex gap-2 justify-end"><button onclick="delVFile(${f.id}, event)" class="text-ss-danger text-xs hover:underline">Delete</button></div>` : '';
+          return `<div onclick="playVaultFile(${f.id})" class="bg-ss-card border border-ss-border p-4 rounded-xl cursor-pointer hover:border-ss-accent shadow-sm"><div class="truncate text-sm font-bold">${f.title}</div>${adminHTML}</div>`;
+        }).join('');
+      };
+    }
+
+    function showVaultFolders() {
+      vFolderId = null;
+      document.getElementById('v-folder-view').classList.remove('hidden');
+      document.getElementById('v-file-view').classList.add('hidden');
+      document.getElementById('v-back-btn').classList.add('hidden');
+      document.getElementById('v-add-file').classList.add('hidden');
+      if(vRole==='admin') document.getElementById('v-add-folder').classList.remove('hidden');
+      renderVaultFolders();
+    }
+
+    function saveVaultFolder() {
+      const name = document.getElementById('v-f-name').value;
+      const color = document.getElementById('v-f-color').value;
+      const id = document.getElementById('v-edit-f-id').value;
+      if(!name) return;
+      const tx = vDB.transaction("v_folders", "readwrite");
+      tx.objectStore("v_folders").put({id: id ? Number(id) : Date.now(), name, color}).onsuccess = () => {
+        document.getElementById('v-modal-folder').classList.add('hidden');
+        vFolderId ? openVaultFolder(vFolderId) : renderVaultFolders();
+      };
+    }
+
+    function editVFolder(id, e) {
+      e.stopPropagation();
+      vDB.transaction("v_folders").objectStore("v_folders").get(id).onsuccess = (ev) => {
+        const f = ev.target.result;
+        document.getElementById('v-edit-f-id').value = f.id;
+        document.getElementById('v-f-name').value = f.name;
+        document.getElementById('v-f-color').value = f.color;
+        document.getElementById('v-modal-folder').classList.remove('hidden');
+      };
+    }
+
+    function delVFolder(id, e) {
+      e.stopPropagation();
+      if(!confirm("Delete folder and all contents?")) return;
+      vDB.transaction("v_folders", "readwrite").objectStore("v_folders").delete(id);
+      const tx = vDB.transaction("v_files", "readwrite");
+      const store = tx.objectStore("v_files");
+      store.openCursor().onsuccess = (ev) => {
+        const c = ev.target.result;
+        if(c) { if(c.value.folderId === id) store.delete(c.key); c.continue(); }
+        else renderVaultFolders();
+      };
+    }
+
+    function saveVaultFile() {
+      const title = document.getElementById('v-file-title').value;
+      const file = document.getElementById('v-file-input').files[0];
+      if(!title || !file) return alert("Select a file and title!");
+      document.getElementById('v-upload-stat').innerText = 'Saving to Database...';
+      document.getElementById('v-save-file-btn').disabled = true;
+      vDB.transaction("v_files", "readwrite").objectStore("v_files").put({id: Date.now(), folderId: vFolderId, title, blob: file}).onsuccess = () => {
+        document.getElementById('v-modal-file').classList.add('hidden');
+        document.getElementById('v-file-title').value = ''; document.getElementById('v-file-input').value = '';
+        document.getElementById('v-upload-stat').innerText = ''; document.getElementById('v-save-file-btn').disabled = false;
+        openVaultFolder(vFolderId);
+      };
+    }
+
+    function delVFile(id, e) {
+      e.stopPropagation();
+      if(confirm("Delete file?")) vDB.transaction("v_files", "readwrite").objectStore("v_files").delete(id).onsuccess = () => openVaultFolder(vFolderId);
+    }
+
+    function playVaultFile(id) {
+      vDB.transaction("v_files").objectStore("v_files").get(id).onsuccess = (e) => {
+        const f = e.target.result;
+        vBlob = f.blob; vBlobName = f.title;
+        document.getElementById('v-player-title').innerText = f.title;
+        
+        const url = URL.createObjectURL(f.blob);
+        const cont = document.getElementById('v-player-media');
+        
+        const dlBtn = document.getElementById('v-download-btn');
+        dlBtn.href = url;
+        dlBtn.download = f.blob.name || f.title;
+
+        if(f.blob.type.startsWith('video/')) {
+          cont.innerHTML = `<video src="${url}" controls autoplay class="w-full h-full object-contain"></video>`;
+        } else if(f.blob.type.startsWith('image/')) {
+          cont.innerHTML = `<img src="${url}" class="w-full h-full object-contain">`;
+        } else if(f.blob.type === 'application/pdf') {
+          cont.innerHTML = `<iframe src="${url}" class="w-full h-full bg-white"></iframe>`;
+        } else {
+          cont.innerHTML = `
+            <div class="text-center p-8">
+              <i class="fas fa-file-alt text-6xl text-ss-muted mb-4 block"></i>
+              <p class="text-ss-muted text-lg">Preview unavailable for this format.</p>
+              <p class="text-ss-muted mt-2">Click the <b>Download</b> button above to open it.</p>
+            </div>`;
+        }
+        document.getElementById('v-modal-player').classList.remove('hidden');
+      };
+    }
+
+    function closeVaultPlayer() {
+      document.getElementById('v-modal-player').classList.add('hidden');
+      document.getElementById('v-player-media').innerHTML='';
+      document.getElementById('v-ai-out').innerText='Ready to evaluate content. Click Summarize.';
+      vBlob = null;
+    }
+
+    async function triggerGemini() {
+      if(!vBlob) return;
+      const key = document.getElementById('v-api-key').value;
+      const out = document.getElementById('v-ai-out');
+      if(!key) return out.innerText = "Error: Please enter a Gemini API Key in the top header.";
+      
+      out.innerText = "Analyzing file contents... ✨";
+      try {
+        const reader = new FileReader();
+        const b64 = await new Promise((res, rej) => { reader.onloadend=()=>res(reader.result.split(',')[1]); reader.onerror=rej; reader.readAsDataURL(vBlob); });
+        
+        const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ contents: [{ parts: [
+            {inlineData: {mimeType: vBlob.type || "application/pdf", data: b64}},
+            {text: `File name: ${vBlobName}. Summarize this simply using bullet points.`}
+          ]}]})
+        });
+        const res = await req.json();
+        if(!req.ok) throw new Error(res.error?.message || "API Error");
+        out.innerText = res.candidates[0].content.parts[0].text;
+      } catch(err) { out.innerText = "Error: " + err.message; }
+    }
+  </script>
+</body>
+</html>
