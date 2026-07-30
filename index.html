@@ -61,6 +61,7 @@
       color: #cdd6f4;
       border: 1px solid #313244;
       transition: background-color 0.2s;
+      cursor: pointer;
     }
     .ss-btn-secondary:hover { background-color: #1a1d2d; }
 
@@ -120,6 +121,12 @@
       <div id="mod-tasks" class="module-container p-8 max-w-4xl mx-auto">
         <header class="flex justify-between items-center mb-8 border-b border-ss-border pb-4">
           <h2 class="text-3xl font-bold text-ss-accent">Task Manager</h2>
+          <div class="flex gap-3">
+            <button onclick="exportJSON('aetherTasks', 'Tasks_Backup')" class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">↓ JSON</button>
+            <label class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">
+              ↑ JSON <input type="file" class="hidden" accept=".json" onchange="importJSON(event, 'aetherTasks', renderTasks)">
+            </label>
+          </div>
         </header>
 
         <div class="bg-ss-card border border-ss-border rounded-xl p-6 mb-8 shadow-lg flex gap-3">
@@ -196,9 +203,9 @@
         <header class="flex justify-between items-center mb-8 pb-4 border-b border-ss-border">
           <h2 class="text-3xl font-bold text-ss-accent">Daily Log</h2>
           <div class="flex gap-3">
-            <button onclick="exportDiary()" class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">Download JSON ↓</button>
+            <button onclick="exportJSON('studyDiary', 'Diary_Backup')" class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">↓ JSON</button>
             <label class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">
-              Load JSON ↑ <input type="file" class="hidden" accept=".json" onchange="importDiary(event)">
+              ↑ JSON <input type="file" class="hidden" accept=".json" onchange="importJSON(event, 'studyDiary', renderDiary)">
             </label>
           </div>
         </header>
@@ -216,6 +223,7 @@
           <textarea id="diary-text" placeholder="What did you study today?" class="w-full ss-input rounded-lg px-4 py-3 h-32 mb-4 resize-y"></textarea>
           <button onclick="saveDiaryEntry()" class="ss-btn px-6 py-3 rounded-lg w-full text-lg">Log Entry 📝</button>
         </div>
+
         <div id="diary-feed" class="space-y-4"></div>
       </div>
 
@@ -223,6 +231,12 @@
       <div id="mod-grades" class="module-container p-8 max-w-5xl mx-auto hidden">
         <header class="flex justify-between items-center mb-8 pb-4 border-b border-ss-border">
           <h2 class="text-3xl font-bold text-ss-accent">Grade Tracker</h2>
+          <div class="flex gap-3">
+            <button onclick="exportJSON('gradeTrackerData', 'Grades_Backup')" class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">↓ JSON</button>
+            <label class="ss-btn-secondary px-4 py-2 rounded-lg cursor-pointer">
+              ↑ JSON <input type="file" class="hidden" accept=".json" onchange="importJSON(event, 'gradeTrackerData', renderGrades)">
+            </label>
+          </div>
         </header>
 
         <div class="bg-ss-card border border-ss-border p-8 rounded-xl mb-8 shadow-lg">
@@ -241,6 +255,7 @@
             <div><label class="text-xs text-ss-muted mb-1 block font-medium">Marks Obtained 🎯</label><input type="number" id="g-marks" class="w-full ss-input rounded-lg px-4 py-2"></div>
             <div><label class="text-xs text-ss-muted mb-1 block font-medium">Total Marks 💯</label><input type="number" id="g-total" class="w-full ss-input rounded-lg px-4 py-2"></div>
           </div>
+
           <button onclick="addGradeRecord()" id="g-submit-btn" class="w-full ss-btn py-3 rounded-lg text-lg">➕ Add Record</button>
         </div>
 
@@ -355,7 +370,7 @@
 
   <script>
     // ==========================================
-    // GLOBAL UI CONTROLLER & AUTH
+    // GLOBAL UI CONTROLLER, AUTH, & DATA MANGEMENT
     // ==========================================
     const MASTER_KEY = "1234";
 
@@ -399,6 +414,48 @@
       activeBtn.classList.remove('text-ss-muted');
     }
 
+    // SHARED JSON EXPORT / IMPORT FUNCTIONS
+    function exportJSON(storageKey, filenamePrefix) {
+      const data = JSON.parse(localStorage.getItem(storageKey)) || [];
+      if(!data.length) return alert("No data to export!");
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+    }
+
+    function importJSON(e, storageKey, renderCallback) {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const importedData = JSON.parse(ev.target.result);
+          if(Array.isArray(importedData)) {
+            let currentData = JSON.parse(localStorage.getItem(storageKey)) || [];
+            // Merge arrays keeping unique IDs
+            const existingIds = new Set(currentData.map(item => item.id));
+            importedData.forEach(item => {
+              if(!item.id) item.id = Date.now() + Math.random(); // ensure ID exists
+              if(!existingIds.has(item.id)) currentData.push(item);
+            });
+            localStorage.setItem(storageKey, JSON.stringify(currentData));
+            // Trigger specific module re-render
+            if(storageKey === 'aetherTasks') tasks = currentData;
+            if(storageKey === 'studyDiary') diaries = currentData;
+            if(storageKey === 'gradeTrackerData') grades = currentData;
+            
+            renderCallback();
+            alert("Data imported successfully!");
+          }
+        } catch(err) { alert("Invalid JSON file format."); }
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // Reset input
+    }
+
+
     // ==========================================
     // MODULE 1: TASKS
     // ==========================================
@@ -429,7 +486,7 @@
 
     document.getElementById('add-btn').onclick = () => {
       const text = tInput.value.trim();
-      if(text) { tasks.push({text, completed: false}); tInput.value=''; renderTasks(); }
+      if(text) { tasks.push({id: Date.now(), text, completed: false}); tInput.value=''; renderTasks(); }
     };
     tInput.onkeypress = (e) => { if(e.key === 'Enter') document.getElementById('add-btn').click(); };
     function toggleTask(i) { tasks[i].completed = !tasks[i].completed; renderTasks(); }
@@ -512,32 +569,6 @@
         localStorage.setItem('studyDiary', JSON.stringify(diaries));
         filterDiary();
       }
-    }
-
-    function exportDiary() {
-      if(!diaries.length) return alert("No entries!");
-      const blob = new Blob([JSON.stringify(diaries, null, 2)], {type: "application/json"});
-      const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
-      link.download = `Diary_Backup_${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-    }
-
-    function importDiary(e) {
-      const file = e.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          if(Array.isArray(data)) {
-            const ids = new Set(diaries.map(d => d.id));
-            data.forEach(n => { if(!ids.has(n.id)) diaries.push(n); });
-            localStorage.setItem('studyDiary', JSON.stringify(diaries));
-            renderDiary(); alert("Loaded successfully!");
-          }
-        } catch(err) { alert("Invalid JSON file."); }
-      };
-      reader.readAsText(file); e.target.value = '';
     }
 
     // ==========================================
@@ -719,6 +750,7 @@
       const tx = vDB.transaction("v_folders", "readwrite");
       tx.objectStore("v_folders").put({id: id ? Number(id) : Date.now(), name, color}).onsuccess = () => {
         document.getElementById('v-modal-folder').classList.add('hidden');
+        document.getElementById('v-f-name').value = '';
         vFolderId ? openVaultFolder(vFolderId) : renderVaultFolders();
       };
     }
